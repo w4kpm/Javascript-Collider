@@ -1,3 +1,4 @@
+
 (defpackage slipstream
   (:use :common-lisp ))
 (in-package slipstream)
@@ -10,11 +11,15 @@
 (use-package 'hunchentoot)
 
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (require "COCOA"))
+;(eval-when (:compile-toplevel :load-toplevel :execute)
+;  (require "COCOA"))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (objc:load-framework "WebKit" :webkit))
+
+
+
+
 
 
 (defun pathname-to-file-url (pathname)
@@ -23,7 +28,7 @@
   ;; what NAMESTRING returns, or it may differ if special characters
   ;; were escaped in NAMESTRING's result.)
   (ccl::with-autorelease-pool
-    (#/retain
+    (#1/retain
      (#/fileURLWithPath: ns:ns-url (ccl::%make-nsstring
                                     (native-translated-namestring pathname))))))
 
@@ -50,7 +55,7 @@
     (setf jserror (#/retain (#/objectForKey: dict (ccl::%make-nsstring "message"))))
     (setf jserrdict dict)))
 
-(defparameter *jserrcatch* (make-instance 'javascript-error))
+
 
 
 
@@ -197,9 +202,6 @@ document.getElementsByTagName(\"HEAD\")[0].appendChild(j);
 (defun browser-window (urlspec)
   (setf *browser* (run-in-other-thread %browser-window  urlspec)))
 
-(browser-window "http://www.mcdonald-consulting.net")
-
-(#/setUIDelegate: *browser* *jserrcatch*)
 
 
 
@@ -254,6 +256,50 @@ document.getElementsByTagName(\"HEAD\")[0].appendChild(j);
     (js-exe javascript)))  
 
 
-(start-slipstream)
+(defun standalone-main ()
+  (browser-window "http://www.mcdonald-consulting.net")
+  (#/setUIDelegate: *browser* *jserrcatch*)
+  (start-slipstream))
 
+
+
+
+  
+
+(defclass slip-stream-owner (ns:ns-object)
+  ((webview :foreign-type :id :accessor webview)
+   (url-bar :foreign-type :id :accessor url-bar))
+  (:metaclass ns:+ns-object))
+(defparameter *browser* nil)
+(defparameter *jserrcatch* nil)
+
+(objc:defmethod (#/awakeFromNib :void)
+    ((self slip-stream-owner))
+  (setf *browser* (webview self))
+  (nav "http://www.mcdonald-consulting.net")
+  (setf *jserrcatch* (make-instance 'javascript-error))
+  (#/setUIDelegate: *browser* *jserrcatch*)
+  (start-slipstream)
+)
+
+
+(defmethod initialize-instance :after ((self slip-stream-owner) &key &allow-other-keys)
+;  (setf *browser* (webview self))
+  (ccl:terminate-when-unreachable self))
+
+;  (main))
+
+#|
+"comments"
+(progn
+  (setf (current-directory) "/Users/kelly/slipstream")
+  (load "slipstream")
+  (require "build-application")
+  (ccl::build-application :name "SlipStream"
+                          :main-nib-name "SlipStream"
+			  :directory "/Users/kelly/Desktop/"
+                          :nibfiles '(#P"/Users/kelly/slipstream/SlipStream.nib")))
+
+
+|#
 
